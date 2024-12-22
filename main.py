@@ -8,7 +8,6 @@ import plotly.graph_objects as go
 API_KEY = "b25b1d81e97defbfc78620fb023205fd"
 BASE_URL = "http://api.openweathermap.org/data/2.5/forecast"
 
-
 # Получение данных о погоде
 def get_weather_data(city):
     url = BASE_URL
@@ -21,7 +20,6 @@ def get_weather_data(city):
     response = requests.get(url, params=params)
     return response.json() if response.status_code == 200 else None
 
-
 # Получение координат города
 def get_city_coordinates(city):
     url = "http://api.openweathermap.org/geo/1.0/direct"
@@ -33,7 +31,6 @@ def get_city_coordinates(city):
     response = requests.get(url, params=params)
     data = response.json()
     return (data[0]["lat"], data[0]["lon"]) if data else (None, None)
-
 
 # Инициализация Dash приложения
 app = dash.Dash(__name__)
@@ -64,17 +61,27 @@ app.layout = html.Div([
         style={'width': '50%', 'margin': '0 auto'}
     ),
 
+    # Ползунок по дням для выбора диапазона дат
+    dcc.Slider(
+        id='day-slider',
+        min=1,
+        max=7,
+        value=3,
+        marks={i: str(i) for i in range(1, 8)},
+        step=1,
+        tooltip={"always_visible": True, "placement": "bottom"}
+    ),
+
     # Контейнер для графиков
     dcc.Graph(id="weather-graph"),
 ])
 
-
 @app.callback(
     Output("weather-graph", "figure"),
-    [Input("submit-button", "n_clicks"), Input("parameter-dropdown", "value")],
+    [Input("submit-button", "n_clicks"), Input("parameter-dropdown", "value"), Input("day-slider", "value")],
     [State("start-city", "value"), State("mid-cities", "value"), State("end-city", "value")]
 )
-def update_graph(n_clicks, selected_parameter, start_city, mid_cities, end_city):
+def update_graph(n_clicks, selected_parameter, days_ahead, start_city, mid_cities, end_city):
     if n_clicks == 0:
         return go.Figure()  # Пустой график при первом запуске
 
@@ -93,7 +100,7 @@ def update_graph(n_clicks, selected_parameter, start_city, mid_cities, end_city)
                     'wind_speed': entry["wind"]["speed"],
                     'precipitation': entry.get("pop", 0) * 100,
                 }
-                for entry in data["list"]
+                for entry in data["list"][:days_ahead * 8]  # Получаем данные только на выбранное количество дней
             ]
             all_data[city] = processed_data
 
@@ -127,7 +134,6 @@ def update_graph(n_clicks, selected_parameter, start_city, mid_cities, end_city)
                       hovermode="x unified")
 
     return fig
-
 
 if __name__ == "__main__":
     app.run(debug=True)
